@@ -296,7 +296,6 @@ class DataReader():
     #   print('[DataReader] deleting...')
 
 
-
 class CaseDataReader(DataReader):
 
     # set different keys
@@ -317,15 +316,20 @@ class CaseDataReader(DataReader):
         '''
         if isinstance(file, str):
             file = h5py.File(file,'r') 
-        j1_constituents = np.array(file.get(self.jet1_constituents_key)) # (576902, 100, 4)
-        j2_constituents = np.array(file.get(self.jet2_constituents_key)) # (576902, 100, 4)
+        j1_constituents = np.array(file.get(self.jet1_constituents_key))[:,:,:] # (batch, 100, 4)
+        j2_constituents = np.array(file.get(self.jet2_constituents_key))[:,:,:] # (batch, 100, 4)
         return np.stack([j1_constituents, j2_constituents], axis=1)
 
 
     def read_constituents_and_dijet_features_from_file(self, path):
         with h5py.File(path,'r') as f:
-            features = np.array(f.get(self.jet_features_key))
+            #features = np.array(f.get(self.jet_features_key))
+            #print(self.jet_features_key)
+            #print(path)
+            features = np.array(f[self.jet_features_key][()])
             constituents = self.read_jet_constituents_from_file(f)
+            #print(features)
+            #print("WTF")
             return [constituents, features]
 
     def read_labels(self, key, path=None):
@@ -342,8 +346,6 @@ class CaseDataReader(DataReader):
         :param max_n: limit number of events
         :return: concatenated jet constituents and jet feature array + corresponding particle feature names and event feature names
         '''
-        print('reading', self.path)
-
         constituents_concat = []
         features_concat = []
         truth_labels_concat = []
@@ -361,9 +363,16 @@ class CaseDataReader(DataReader):
                 print("\nCould not read file ", fname, ': ', repr(e))
             except IndexError as e:
                 print("\nNo data in file ", fname, ':', repr(e))
+            print(len(constituents_concat))
             if len(constituents_concat) > max_n:
                 break
 
-        print('\nnum files read in dir ', self.path, ': ', i_file + 1)
+        #print('\nnum files read in dir ', self.path, ': ', i_file + 1)
 
         return [np.asarray(constituents_concat), self.constituents_feature_names_val, np.asarray(features_concat), self.dijet_feature_names_val, np.asarray(truth_labels_concat)]
+
+
+    def read_constituents_from_dir(self, read_n=None): # -> np.ndarray [n x 2 x 100 x 3]
+        ''' read constituents of jet 1 and jet 2 from all file parts in directory '''
+        constituents, *_ = self.read_events_from_dir(max_n=read_n)
+        return constituents
